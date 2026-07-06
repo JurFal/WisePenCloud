@@ -12,6 +12,7 @@ import com.oriole.wisepen.document.api.domain.base.DocumentUploadMeta;
 import com.oriole.wisepen.document.api.domain.dto.req.DocumentCreateRequest;
 import com.oriole.wisepen.document.api.domain.dto.req.DocumentForkRequest;
 import com.oriole.wisepen.document.api.domain.dto.req.DocumentUploadInitRequest;
+import com.oriole.wisepen.document.api.domain.dto.res.DocumentSearchTextResponse;
 import com.oriole.wisepen.document.api.domain.dto.res.DocumentUploadInitResponse;
 import com.oriole.wisepen.document.api.domain.dto.res.DocumentVersionInfoResponse;
 import com.oriole.wisepen.document.api.domain.mq.DocumentParseTaskMessage;
@@ -381,6 +382,19 @@ public class DocumentServiceImpl implements IDocumentService {
         }
         return documentVersionRepository.findByResourceIdAndVersion(resourceId, targetVersion)
                 .orElseThrow(() -> new ServiceException(DocumentError.DOCUMENT_NOT_FOUND));
+    }
+
+    @Override
+    public DocumentSearchTextResponse getDocumentSearchText(String resourceId, Integer targetVersion) {
+        DocumentVersionEntity versionEntity = getDocumentVersion(resourceId, targetVersion);
+        DocumentContentEntity contentEntity = documentContentRepository.findById(versionEntity.getDocumentId())
+                .orElseThrow(() -> new ServiceException(DocumentError.DOCUMENT_NOT_FOUND));
+        String searchText = contentEntity.getMarkdown() != null ? contentEntity.getMarkdown() : contentEntity.getRawText();
+        return DocumentSearchTextResponse.builder()
+                .resourceId(resourceId)
+                .version(versionEntity.getVersion())
+                .searchText(searchText)
+                .build();
     }
 
     @Override

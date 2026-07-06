@@ -4,6 +4,10 @@ import com.oriole.wisepen.document.api.constant.DocumentConstants;
 import com.oriole.wisepen.document.service.IDocumentService;
 import com.oriole.wisepen.resource.domain.mq.ResourceDeletedMessage;
 import com.oriole.wisepen.resource.enums.ResourceType;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,6 +28,13 @@ public class ResourceDeletedConsumer {
     private final IDocumentService documentService;
 
     @KafkaListener(topics = TOPIC_RESOURCE_PHYSICAL_DESTROY, groupId = "wisepen-document-physical-destroy-group")
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = TOPIC_RESOURCE_PHYSICAL_DESTROY,
+            description = "消费资源物理删除事件，筛选文档服务托管的资源并删除对应文档数据。",
+            payloadType = ResourceDeletedMessage.class,
+            message = @AsyncMessage(name = "ResourceDeletedMessage", title = "资源物理删除事件")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-document-physical-destroy-group")
     public void onResourceDeleted(ResourceDeletedMessage message) {
         Map<ResourceType, List<String>> typedMap = message.getTypedResourceIds();
         List<String> resourceIds = new ArrayList<>();

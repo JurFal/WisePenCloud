@@ -17,6 +17,7 @@ import com.oriole.wisepen.resource.enums.CommentType;
 import com.oriole.wisepen.resource.exception.ResourceError;
 import com.oriole.wisepen.resource.repository.*;
 import com.oriole.wisepen.resource.service.IResourceCommentService;
+import com.oriole.wisepen.resource.service.IResourceService;
 import com.oriole.wisepen.user.api.domain.base.UserDisplayBase;
 import com.oriole.wisepen.user.api.feign.RemoteUserService;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ResourceCommentServiceImpl implements IResourceCommentService {
 
-    private final ResourceItemRepository resourceItemRepository;
+    private final IResourceService resourceService;
     private final ResourceCommentRepository commentRepository;
     private final ResourceUserInteractionRecordRepository resourceUserInteractionRecordRepository;
     private final CustomResourceCommentRepository customCommentRepository;
@@ -43,18 +44,11 @@ public class ResourceCommentServiceImpl implements IResourceCommentService {
     private final CustomResourceUserInteractionRecordRepository customInteractionRecordRepository;
     private final RemoteUserService remoteUserService;
 
-    private ResourceItemEntity getResourceEntity(String resourceId){
-        ResourceItemEntity resource = resourceItemRepository.findById(resourceId)
-                .orElseThrow(() -> new ServiceException(ResourceError.RESOURCE_NOT_FOUND));
-        if (resource.getDeletedAt() != null) throw new ServiceException(ResourceError.RESOURCE_NOT_FOUND);
-        return resource;
-    }
-
     @Override
     public String createComment(CommentCreateRequest request, String operatorUserId) {
         // 检查资源状态
         String resourceId = request.getResourceId();
-        getResourceEntity(resourceId);
+        resourceService.getResourceEntity(resourceId);
 
         ResourceCommentEntity comment = ResourceCommentEntity.builder()
                 .resourceId(resourceId).authorId(operatorUserId)
@@ -72,7 +66,7 @@ public class ResourceCommentServiceImpl implements IResourceCommentService {
     public String createReply(CommentReplyCreateRequest request, String operatorUserId) {
         // 检查资源状态
         String resourceId = request.getResourceId();
-        getResourceEntity(resourceId);
+        resourceService.getResourceEntity(resourceId);
 
         // 检查回复的Comment是否存在
         ResourceCommentEntity replyToComment = commentRepository.findByIdAndResourceIdAndDeletedAtIsNull(request.getReplyTo(), resourceId)
@@ -108,7 +102,7 @@ public class ResourceCommentServiceImpl implements IResourceCommentService {
     public void deleteCommentItem(CommentDeleteRequest request, String operatorUserId, IdentityType operatorIdentityType) {
         // 检查资源状态
         String resourceId = request.getResourceId();
-        ResourceItemEntity resourceItemEntity = getResourceEntity(resourceId);
+        ResourceItemEntity resourceItemEntity = resourceService.getResourceEntity(resourceId);
 
         String commentId = request.getCommentId();
         ResourceCommentEntity comment = commentRepository.findByIdAndResourceIdAndDeletedAtIsNull(commentId, resourceId)
@@ -141,7 +135,7 @@ public class ResourceCommentServiceImpl implements IResourceCommentService {
     public boolean toggleLike(CommentLikeRequest request, String operatorUserId) {
         // 检查资源状态
         String resourceId = request.getResourceId();
-        getResourceEntity(resourceId);
+        resourceService.getResourceEntity(resourceId);
 
         // 确保点赞的评论存在
         String commentId = request.getCommentId();

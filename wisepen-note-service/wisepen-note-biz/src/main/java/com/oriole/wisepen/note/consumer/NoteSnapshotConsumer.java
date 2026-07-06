@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oriole.wisepen.note.api.domain.mq.NoteSnapshotMessage;
 import com.oriole.wisepen.note.service.INoteVersionService;
 import com.oriole.wisepen.resource.enums.ResourceType;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -29,6 +33,13 @@ public class NoteSnapshotConsumer {
                     "value.deserializer=org.apache.kafka.common.serialization.StringDeserializer"
             }
     )
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = TOPIC_NOTE_SNAPSHOT,
+            description = "消费协同笔记快照事件，创建笔记版本并记录本轮编辑作者。",
+            payloadType = NoteSnapshotMessage.class,
+            message = @AsyncMessage(name = "NoteSnapshotMessage", title = "笔记快照事件")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-note-snapshot-group")
     public void onSnapshot(String payload) throws Exception {
         // 从非Java微服务（NodeJS）的发布者订阅，使用objectMapper显式转换
         NoteSnapshotMessage msg = objectMapper.readValue(payload, NoteSnapshotMessage.class);

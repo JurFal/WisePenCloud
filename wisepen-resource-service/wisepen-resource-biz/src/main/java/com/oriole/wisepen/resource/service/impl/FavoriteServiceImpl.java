@@ -22,6 +22,7 @@ import com.oriole.wisepen.resource.repository.FavoriteCollectionRepository;
 import com.oriole.wisepen.resource.repository.FavoriteResourceRefRepository;
 import com.oriole.wisepen.resource.repository.ResourceItemRepository;
 import com.oriole.wisepen.resource.enums.ResourceAction;
+import com.oriole.wisepen.resource.service.IResourceService;
 import com.oriole.wisepen.resource.service.assembler.ResourceItemResponseAssembler;
 import com.oriole.wisepen.resource.service.IFavoriteService;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FavoriteServiceImpl implements IFavoriteService {
 
+    private final IResourceService resourceService;
     private final FavoriteCollectionRepository favoriteCollectionRepository;
     private final FavoriteResourceRefRepository favoriteResourceRefRepository;
     private final CustomFavoriteCollectionRepository customFavoriteCollectionRepository;
@@ -72,9 +74,7 @@ public class FavoriteServiceImpl implements IFavoriteService {
         }
 
         // 检查资源是否存在，资源已被软删除或不存在时不能进行除取消收藏外的其他操作
-        ResourceItemEntity targetResource = resourceItemRepository.findById(resourceId)
-                .orElseThrow(() -> new ServiceException(ResourceError.RESOURCE_NOT_FOUND));
-        if (targetResource.getDeletedAt() != null) throw new ServiceException(ResourceError.RESOURCE_NOT_FOUND);
+        ResourceItemEntity targetResource = resourceService.getResourceEntity(resourceId);
 
         Set<String> collectionIds = normalizeCollectionIds(request.getCollectionIds());
         // 无收藏夹列表，兜底为默认收藏夹

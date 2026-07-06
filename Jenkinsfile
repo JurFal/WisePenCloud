@@ -16,6 +16,15 @@ pipeline {
     // 可选参数化构建，方便手动触发时选择分支
     parameters {
         string(name: 'BRANCH_NAME', defaultValue: 'main', description: '选择需要构建的 Git 分支')
+        booleanParam(name: 'DEPLOY_USER_SERVICE', defaultValue: true, description: '构建并部署 user-service')
+        booleanParam(name: 'DEPLOY_SYSTEM_SERVICE', defaultValue: true, description: '构建并部署 system-service')
+        booleanParam(name: 'DEPLOY_DOCS_SERVICE', defaultValue: true, description: '构建并部署 docs-service')
+        booleanParam(name: 'DEPLOY_RESOURCE_SERVICE', defaultValue: true, description: '构建并部署 resource-service')
+        booleanParam(name: 'DEPLOY_DOCUMENT_SERVICE', defaultValue: true, description: '构建并部署 document-service')
+        booleanParam(name: 'DEPLOY_NOTE_SERVICE', defaultValue: true, description: '构建并部署 note-service')
+        booleanParam(name: 'DEPLOY_AI_ASSET_SERVICE', defaultValue: true, description: '构建并部署 ai-asset-service')
+        booleanParam(name: 'DEPLOY_FILE_STORAGE_SERVICE', defaultValue: true, description: '构建并部署 file-storage-service')
+        booleanParam(name: 'DEPLOY_FUDAN_EXTENSION_SERVICE', defaultValue: true, description: '构建并部署 fudan-extension-service')
     }
 
     stages {
@@ -24,6 +33,46 @@ pipeline {
                 echo "开始拉取 ${params.BRANCH_NAME} 分支代码..."
                 checkout scm
                 echo "✅ 代码拉取成功，当前构建版本 TAG: ${IMAGE_TAG}"
+            }
+        }
+
+        stage('1.5 确认部署服务 (Select Services)') {
+            steps {
+                script {
+                    def selectedServices = []
+                    if (params.DEPLOY_USER_SERVICE) {
+                        selectedServices << 'user-service'
+                    }
+                    if (params.DEPLOY_SYSTEM_SERVICE) {
+                        selectedServices << 'system-service'
+                    }
+                    if (params.DEPLOY_DOCS_SERVICE) {
+                        selectedServices << 'docs-service'
+                    }
+                    if (params.DEPLOY_RESOURCE_SERVICE) {
+                        selectedServices << 'resource-service'
+                    }
+                    if (params.DEPLOY_DOCUMENT_SERVICE) {
+                        selectedServices << 'document-service'
+                    }
+                    if (params.DEPLOY_NOTE_SERVICE) {
+                        selectedServices << 'note-service'
+                    }
+                    if (params.DEPLOY_AI_ASSET_SERVICE) {
+                        selectedServices << 'ai-asset-service'
+                    }
+                    if (params.DEPLOY_FILE_STORAGE_SERVICE) {
+                        selectedServices << 'file-storage-service'
+                    }
+                    if (params.DEPLOY_FUDAN_EXTENSION_SERVICE) {
+                        selectedServices << 'fudan-extension-service'
+                    }
+                    if (selectedServices.isEmpty()) {
+                        error '至少需要选择一个要构建并部署的服务。'
+                    }
+                    env.SELECTED_COMPOSE_SERVICES = selectedServices.join(' ')
+                    echo "本次选择构建并部署的服务: ${env.SELECTED_COMPOSE_SERVICES}"
+                }
             }
         }
 
@@ -78,6 +127,9 @@ pipeline {
 
             parallel {
                 stage('User Service') {
+                    when {
+                        expression { return params.DEPLOY_USER_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-user:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-user-service/wisepen-user-biz ."
@@ -85,6 +137,9 @@ pipeline {
                     }
                 }
                 stage('System Service') {
+                    when {
+                        expression { return params.DEPLOY_SYSTEM_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-system:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-system-service/wisepen-system-biz ."
@@ -92,6 +147,9 @@ pipeline {
                     }
                 }
                 stage('Docs Service') {
+                    when {
+                        expression { return params.DEPLOY_DOCS_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-docs:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-docs-service/wisepen-docs-biz ."
@@ -99,6 +157,9 @@ pipeline {
                     }
                 }
                 stage('Resource Service') {
+                    when {
+                        expression { return params.DEPLOY_RESOURCE_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-resource:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-resource-service/wisepen-resource-biz ."
@@ -106,6 +167,9 @@ pipeline {
                     }
                 }
                 stage('Document Service') {
+                    when {
+                        expression { return params.DEPLOY_DOCUMENT_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-document:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-document-service/wisepen-document-biz ."
@@ -113,6 +177,9 @@ pipeline {
                     }
                 }
                 stage('Note Service') {
+                    when {
+                        expression { return params.DEPLOY_NOTE_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-note:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-note-service/wisepen-note-biz ."
@@ -120,6 +187,9 @@ pipeline {
                     }
                 }
                 stage('AI Asset Service') {
+                    when {
+                        expression { return params.DEPLOY_AI_ASSET_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-ai-asset:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-ai-asset-service/wisepen-ai-asset-biz ."
@@ -127,6 +197,9 @@ pipeline {
                     }
                 }
                 stage('File Storage Service') {
+                    when {
+                        expression { return params.DEPLOY_FILE_STORAGE_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-file-storage:${IMAGE_TAG} -f Dockerfile --build-arg MODULE_NAME=wisepen-file-storage-service/wisepen-file-storage-biz ."
@@ -134,6 +207,9 @@ pipeline {
                     }
                 }
                 stage('Fudan Extension Service') {
+                    when {
+                        expression { return params.DEPLOY_FUDAN_EXTENSION_SERVICE }
+                    }
                     steps {
                         script {
                             sh "docker build -t ${DOCKER_REGISTRY}/${PROJECT_NAME}-fudan-extension:${IMAGE_TAG} -f Dockerfile.playwright --build-arg MODULE_NAME=wisepen-fudan-extension-service/wisepen-fudan-extension-biz ."
@@ -150,7 +226,7 @@ pipeline {
             }
             steps {
                 script {
-                    echo "开始部署最新版本: ${IMAGE_TAG} ..."
+                    echo "开始部署最新版本: ${IMAGE_TAG}，服务: ${env.SELECTED_COMPOSE_SERVICES} ..."
                     // Jenkins 和 运行服务器 在同一台宿主机
                     sh """
                     # 如果没有 docker-compose，则静默下载最新独立版
@@ -177,7 +253,7 @@ pipeline {
                     fi
 
                     # 启动部署
-                    docker-compose \$COMPOSE_FILES up -d --remove-orphans
+                    docker-compose \$COMPOSE_FILES up -d --remove-orphans ${env.SELECTED_COMPOSE_SERVICES}
                     """
                 }
             }

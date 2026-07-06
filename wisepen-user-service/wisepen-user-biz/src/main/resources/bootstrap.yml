@@ -35,3 +35,16 @@ wisepen:
     title: 用户服务 API
     version: 1.0.0
     description: WisePen 用户、认证、小组与钱包接口
+
+springwolf:
+  plugin:
+    kafka:
+      scanner:
+        kafka-listener:
+          enabled: false
+  docket:
+    base-package: com.oriole.wisepen.user
+    info:
+      title: 用户服务 Kafka Events
+      version: 1.0.0
+      description: Token 计费与复旦 UIS 认证请求相关 Kafka 消息契约

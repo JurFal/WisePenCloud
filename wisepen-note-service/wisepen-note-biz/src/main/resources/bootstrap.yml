@@ -35,3 +35,16 @@ wisepen:
     title: 笔记服务 API
     version: 1.0.0
     description: WisePen 笔记内容、操作日志与详情接口
+
+springwolf:
+  plugin:
+    kafka:
+      scanner:
+        kafka-listener:
+          enabled: false
+  docket:
+    base-package: com.oriole.wisepen.note
+    info:
+      title: 笔记服务 Kafka Events
+      version: 1.0.0
+      description: 笔记快照、操作日志与资源删除相关 Kafka 消息契约

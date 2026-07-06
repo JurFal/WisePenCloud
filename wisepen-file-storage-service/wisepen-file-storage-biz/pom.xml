@@ -73,6 +73,10 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.springwolf</groupId>
+            <artifactId>springwolf-kafka</artifactId>
+        </dependency>
 
         <!-- Aliyun OSS -->
         <dependency>

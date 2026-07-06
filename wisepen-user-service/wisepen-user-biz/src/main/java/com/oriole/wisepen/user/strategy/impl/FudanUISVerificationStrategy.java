@@ -2,10 +2,8 @@ package com.oriole.wisepen.user.strategy.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oriole.wisepen.common.core.domain.R;
 import com.oriole.wisepen.common.core.exception.ServiceException;
-import com.oriole.wisepen.extension.fudan.constant.MqTopicConstants;
 import com.oriole.wisepen.extension.fudan.domain.dto.FudanUISTaskResultDTO;
 import com.oriole.wisepen.extension.fudan.domain.mq.FudanUISAuthRequestMessage;
 import com.oriole.wisepen.extension.fudan.enums.FudanUISTaskState;
@@ -20,10 +18,10 @@ import com.oriole.wisepen.user.domain.entity.UserProfileEntity;
 import com.oriole.wisepen.user.exception.UserError;
 import com.oriole.wisepen.user.mapper.UserMapper;
 import com.oriole.wisepen.user.mapper.UserProfileMapper;
+import com.oriole.wisepen.user.mq.KafkaUserEventPublisher;
 import com.oriole.wisepen.user.strategy.UserVerificationStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
@@ -35,11 +33,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class FudanUISVerificationStrategy implements UserVerificationStrategy {
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     private final UserMapper userMapper;
     private final UserProfileMapper userProfileMapper;
     private final RemoteFudanExtensionService remoteFudanExtensionService;
+    private final KafkaUserEventPublisher kafkaUserEventPublisher;
 
     @Override
     public UserVerificationMode getMode() {
@@ -65,15 +62,7 @@ public class FudanUISVerificationStrategy implements UserVerificationStrategy {
                 .account(uisAccount)
                 .password(uisPassword)
                 .build();
-        try {
-            kafkaTemplate.send(MqTopicConstants.FUDAN_UIS_AUTH_REQ, objectMapper.writeValueAsString(message));
-            log.debug("fudan uis auth publish requested. topic={} userId={}",
-                    MqTopicConstants.FUDAN_UIS_AUTH_REQ, userId);
-        } catch (Exception e) {
-            log.error("fudan uis auth publish request failed. topic={} userId={}",
-                    MqTopicConstants.FUDAN_UIS_AUTH_REQ, userId, e);
-            throw new ServiceException(UserError.VERIFICATION_FUDAN_UIS_REQUEST_FAILED);
-        }
+        kafkaUserEventPublisher.publishUisAuthRequest(userId, message);
     }
 
     @Override

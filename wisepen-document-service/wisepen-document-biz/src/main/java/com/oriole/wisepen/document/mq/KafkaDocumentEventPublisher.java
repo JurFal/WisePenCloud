@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oriole.wisepen.common.mq.ReliablePublisher;
 import com.oriole.wisepen.document.api.domain.mq.DocumentParseTaskMessage;
 import com.oriole.wisepen.document.api.domain.mq.DocumentReadyMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.core.asyncapi.annotations.AsyncPublisher;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,12 @@ public class KafkaDocumentEventPublisher {
     private final ObjectMapper objectMapper;
 
     // 发布文档解析任务（内部削峰）
+    @AsyncPublisher(operation = @AsyncOperation(
+            channelName = TOPIC_DOCUMENT_PARSE,
+            description = "文档上传完成后发布解析任务，由文档服务异步转换、解析并生成预览。",
+            payloadType = DocumentParseTaskMessage.class,
+            message = @AsyncMessage(name = "DocumentParseTaskMessage", title = "文档解析任务")
+    ))
     public void publishParseTask(DocumentParseTaskMessage msg) {
         try {
             String documentId = msg.getDocumentId();
@@ -42,6 +51,12 @@ public class KafkaDocumentEventPublisher {
     }
 
     // 发布文档处理就绪事件
+    @AsyncPublisher(operation = @AsyncOperation(
+            channelName = TOPIC_DOCUMENT_READY,
+            description = "文档转换解析完成后发布就绪事件，供资源服务同步可检索内容。",
+            payloadType = DocumentReadyMessage.class,
+            message = @AsyncMessage(name = "DocumentReadyMessage", title = "文档就绪事件")
+    ))
     public void publishReadyEvent(DocumentReadyMessage msg) {
         try {
             String resourceId = msg.getResourceId();
@@ -55,6 +70,12 @@ public class KafkaDocumentEventPublisher {
     }
 
     // 发布文件删除事件
+    @AsyncPublisher(operation = @AsyncOperation(
+            channelName = TOPIC_FILE_DELETE,
+            description = "文档版本取消、删除或补偿时发布对象存储清理请求。",
+            payloadType = String.class,
+            message = @AsyncMessage(name = "FileDeleteObjectKeys", title = "待删除对象 Key 列表")
+    ))
     public void publishFileDeleteEvent(List<String> allObjectKeys) {
         try {
             // 发布至兼容非Java微服务的订阅者，统一使用 Jackson 序列化

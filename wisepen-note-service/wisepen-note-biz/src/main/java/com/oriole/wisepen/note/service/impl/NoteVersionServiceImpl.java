@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import com.oriole.wisepen.common.core.domain.PageR;
 import com.oriole.wisepen.common.core.exception.ServiceException;
 import com.oriole.wisepen.note.api.domain.base.NoteSnapshotBase;
+import com.oriole.wisepen.note.api.domain.dto.res.NoteSearchTextResponse;
 import com.oriole.wisepen.note.api.domain.dto.res.NoteSnapshotResponse;
 import com.oriole.wisepen.note.api.domain.dto.res.NoteVersionInfoResponse;
 import com.oriole.wisepen.note.domain.entity.NoteContentEntity;
@@ -103,6 +104,20 @@ public class NoteVersionServiceImpl implements INoteVersionService {
                 .fullSnapshot(fullSnapshotBase64)
                 .version(currentVersion)
                 .deltas(deltasBase64.isEmpty() ? null : deltasBase64)
+                .build();
+    }
+
+    @Override
+    public NoteSearchTextResponse getSearchText(String resourceId, Integer targetVersion) {
+        NoteVersionEntity versionEntity = noteVersionRepository.findFirstByResourceIdAndTypeAndVersionLessThanEqualOrderByVersionDesc(resourceId, VersionType.FULL, targetVersion)
+                .orElseThrow(() -> new ServiceException(NoteError.NOTE_NOT_FOUND));
+        NoteContentEntity contentEntity = noteContentRepository.findById(resourceId)
+                .orElseThrow(() -> new ServiceException(NoteError.NOTE_NOT_FOUND));
+        String searchText = contentEntity.getRawText();
+        return NoteSearchTextResponse.builder()
+                .resourceId(resourceId)
+                .version(versionEntity.getVersion())
+                .searchText(searchText)
                 .build();
     }
 

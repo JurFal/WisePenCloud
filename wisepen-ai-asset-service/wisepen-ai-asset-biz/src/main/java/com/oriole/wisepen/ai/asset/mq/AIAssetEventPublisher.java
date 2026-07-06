@@ -2,6 +2,9 @@ package com.oriole.wisepen.ai.asset.mq;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oriole.wisepen.common.mq.ReliablePublisher;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.core.asyncapi.annotations.AsyncPublisher;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,12 @@ public class AIAssetEventPublisher {
     private final ObjectMapper objectMapper;
 
     // 发布文件删除事件
+    @AsyncPublisher(operation = @AsyncOperation(
+            channelName = TOPIC_FILE_DELETE,
+            description = "AI 资产版本回滚、发布补偿或删除时发布对象存储清理请求。",
+            payloadType = String.class,
+            message = @AsyncMessage(name = "FileDeleteObjectKeys", title = "待删除对象 Key 列表")
+    ))
     public void publishFileDeleteEvent(List<String> allObjectKeys) {
         try {
             // 发布至兼容非Java微服务的订阅者，统一使用 Jackson 序列化

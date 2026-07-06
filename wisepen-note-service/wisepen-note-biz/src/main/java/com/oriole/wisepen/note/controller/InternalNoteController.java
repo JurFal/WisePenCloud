@@ -1,6 +1,7 @@
 package com.oriole.wisepen.note.controller;
 
 import com.oriole.wisepen.common.core.domain.R;
+import com.oriole.wisepen.note.api.domain.dto.res.NoteSearchTextResponse;
 import com.oriole.wisepen.note.api.domain.dto.res.NoteSnapshotResponse;
 import com.oriole.wisepen.note.api.feign.RemoteNoteService;
 import com.oriole.wisepen.note.service.INoteVersionService;
@@ -33,5 +34,12 @@ public class InternalNoteController implements RemoteNoteService {
     @Override
     public R<NoteSnapshotResponse> getNoteLatestVersion(@RequestParam("resourceId") String resourceId) {
         return R.ok(noteVersionService.getLatestVersion(resourceId));
+    }
+
+    @GetMapping("/getNoteSearchText")
+    @Override
+    public R<NoteSearchTextResponse> getNoteSearchText(@RequestParam("resourceId") String resourceId,
+                                                       @RequestParam("version") Integer version) {
+        return R.ok(noteVersionService.getSearchText(resourceId, version));
     }
 }

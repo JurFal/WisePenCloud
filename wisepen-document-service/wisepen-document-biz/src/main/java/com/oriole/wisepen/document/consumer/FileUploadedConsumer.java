@@ -10,6 +10,10 @@ import com.oriole.wisepen.document.repository.DocumentVersionRepository;
 import com.oriole.wisepen.document.service.IDocumentService;
 import com.oriole.wisepen.file.storage.api.domain.mq.FileUploadedMessage;
 import com.oriole.wisepen.file.storage.api.enums.StorageSceneEnum;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,6 +34,13 @@ public class FileUploadedConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = TOPIC_FILE_UPLOADED, groupId = "wisepen-document-upload-callback-group")
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = TOPIC_FILE_UPLOADED,
+            description = "消费文件上传完成事件，更新文档版本上传元数据并发布后续文档解析任务。",
+            payloadType = FileUploadedMessage.class,
+            message = @AsyncMessage(name = "FileUploadedMessage", title = "文件上传完成事件")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-document-upload-callback-group")
     public void onFileUploaded(String payload) throws Exception {
         // 从兼容非Java微服务的发布者订阅，使用objectMapper显式转换
         FileUploadedMessage msg = objectMapper.readValue(payload, FileUploadedMessage.class);

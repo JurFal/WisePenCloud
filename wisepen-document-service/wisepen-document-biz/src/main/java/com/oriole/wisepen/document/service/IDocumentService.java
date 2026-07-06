@@ -5,6 +5,7 @@ import com.oriole.wisepen.document.api.domain.base.DocumentStatus;
 import com.oriole.wisepen.document.api.domain.dto.req.DocumentCreateRequest;
 import com.oriole.wisepen.document.api.domain.dto.req.DocumentForkRequest;
 import com.oriole.wisepen.document.api.domain.dto.req.DocumentUploadInitRequest;
+import com.oriole.wisepen.document.api.domain.dto.res.DocumentSearchTextResponse;
 import com.oriole.wisepen.document.api.domain.dto.res.DocumentUploadInitResponse;
 import com.oriole.wisepen.document.api.domain.dto.res.DocumentVersionInfoResponse;
 import com.oriole.wisepen.document.domain.entity.DocumentContentEntity;
@@ -54,6 +55,9 @@ public interface IDocumentService {
 
     // 获取指定版本信息
     DocumentVersionEntity getDocumentVersion(String resourceId, Integer targetVersion);
+
+    // 获取指定版本搜索文本
+    DocumentSearchTextResponse getDocumentSearchText(String resourceId, Integer targetVersion);
 
     // 分页查询文档版本
     PageR<DocumentVersionInfoResponse> listVersions(String resourceId, int page, int size);

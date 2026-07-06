@@ -61,6 +61,30 @@ scalar:
     - title: AI 资产服务
       slug: ai-asset
       url: /docs/api/ai-asset
+    - title: AI 服务
+      slug: chat
+      url: /docs/api/chat
+    - title: Events - 用户服务
+      slug: events-user
+      url: /docs/asyncapi/user
+    - title: Events - 资源服务
+      slug: events-resource
+      url: /docs/asyncapi/resource
+    - title: Events - 文档服务
+      slug: events-document
+      url: /docs/asyncapi/document
+    - title: Events - 文件存储服务
+      slug: events-file-storage
+      url: /docs/asyncapi/file-storage
+    - title: Events - 复旦扩展服务
+      slug: events-fudan-extension
+      url: /docs/asyncapi/fudan-extension
+    - title: Events - 笔记服务
+      slug: events-note
+      url: /docs/asyncapi/note
+    - title: Events - AI 资产服务
+      slug: events-ai-asset
+      url: /docs/asyncapi/ai-asset
 
 wisepen:
   openapi:
@@ -77,3 +101,14 @@ wisepen:
       fudan-extension: wisepen-fudan-extension-service
       note: wisepen-note-service
       ai-asset: wisepen-ai-asset-service
+      chat: wisepen-chat-service
+    api-docs-paths:
+      chat: /openapi.json
+    asyncapi-docs-paths:
+      user: /springwolf/docs
+      resource: /springwolf/docs
+      document: /springwolf/docs
+      file-storage: /springwolf/docs
+      fudan-extension: /springwolf/docs
+      note: /springwolf/docs
+      ai-asset: /springwolf/docs

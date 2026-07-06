@@ -14,6 +14,7 @@ import org.springframework.web.util.HtmlUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Data
 @NoArgsConstructor
@@ -80,6 +81,7 @@ public class ESIndexEntity {
     public ESIndexEntity(String resourceId, String content) {
         this.resourceId = resourceId;
         this.content = HtmlUtils.htmlEscape(content);
+        this.updateTime = LocalDateTime.now();
     }
 
     public ESIndexEntity(ResourceItemEntity entity) {
@@ -89,18 +91,26 @@ public class ESIndexEntity {
         this.ownerId = entity.getOwnerId();
         this.updateTime = entity.getUpdateTime() != null ? entity.getUpdateTime() : LocalDateTime.now();
 
+        Set<String> marketGroupIds = entity.getGroupBinds() == null ? Collections.emptySet() :
+                entity.getGroupBinds().stream()
+                        .filter(bind -> bind.getMarketSaleInfo() != null)
+                        .map(bind -> bind.getGroupId())
+                        .collect(Collectors.toSet());
+
         // 组 DISCOVER 权限
         this.computedGroupAcls = entity.getComputedGroupAcls() != null ?
-                entity.getComputedGroupAcls().entrySet().stream().map(entry -> {
-                    boolean isDiscover = ResourceAction.permissionCodeToActions(entry.getValue().getBaseMask()).contains(ResourceAction.DISCOVER);
-                    List<String> specifiedUsers = entry.getValue().getUserMasks().entrySet().stream().filter(
-                            userMask -> ResourceAction.hasAction(userMask.getValue(), ResourceAction.DISCOVER) != isDiscover
-                    ).map(Map.Entry::getKey).toList();
+                entity.getComputedGroupAcls().entrySet().stream()
+                        .filter(entry -> !marketGroupIds.contains(entry.getKey())) // Market组不写入ACL以避免从普通搜索中获取到信息
+                        .map(entry -> {
+                            boolean isDiscover = ResourceAction.permissionCodeToActions(entry.getValue().getBaseMask()).contains(ResourceAction.DISCOVER);
+                            List<String> specifiedUsers = entry.getValue().getUserMasks().entrySet().stream().filter(
+                                    userMask -> ResourceAction.hasAction(userMask.getValue(), ResourceAction.DISCOVER) != isDiscover
+                            ).map(Map.Entry::getKey).toList();
 
-                    return ComputedGroupAclProjection.builder().groupId(entry.getKey())
-                            .isDiscover(isDiscover).specifiedUsers(specifiedUsers)
-                            .build();
-                }).toList() : null;
+                            return ComputedGroupAclProjection.builder().groupId(entry.getKey())
+                                    .isDiscover(isDiscover).specifiedUsers(specifiedUsers)
+                                    .build();
+                        }).toList() : null;
 
         // 资源级指定 DISCOVER 权限
         this.specifiedDiscoverUsers = entity.getSpecifiedUsersGrantedActionsMask() != null ?

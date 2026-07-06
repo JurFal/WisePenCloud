@@ -20,6 +20,10 @@ import com.oriole.wisepen.file.storage.api.domain.dto.UploadInitRespDTO;
 import com.oriole.wisepen.file.storage.api.enums.StorageSceneEnum;
 import com.oriole.wisepen.file.storage.api.feign.RemoteStorageService;
 import com.oriole.wisepen.resource.enums.ResourceType;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -58,6 +62,13 @@ public class DocumentConversionAndParseConsumer {
     private final MarkdownPageBreakInjector markdownPageBreakInjector;
 
     @KafkaListener(topics = TOPIC_DOCUMENT_PARSE, groupId = "wisepen-document-parse-group")
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = TOPIC_DOCUMENT_PARSE,
+            description = "消费文档解析任务，下载源文件并完成格式转换、内容抽取、预览 PDF 上传和文档状态推进。",
+            payloadType = DocumentParseTaskMessage.class,
+            message = @AsyncMessage(name = "DocumentParseTaskMessage", title = "文档解析任务")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-document-parse-group")
     public void onDocumentParse(DocumentParseTaskMessage msg) {
         log.info("document parse event received. topic={} documentId={}",
                 TOPIC_DOCUMENT_PARSE, msg.getDocumentId());

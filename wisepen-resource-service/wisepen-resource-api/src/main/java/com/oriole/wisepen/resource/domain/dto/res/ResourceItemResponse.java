@@ -1,7 +1,6 @@
 package com.oriole.wisepen.resource.domain.dto.res;
 
 import com.oriole.wisepen.resource.domain.base.ResourceItemInfoBase;
-import com.oriole.wisepen.resource.domain.base.TagInfoBase;
 import com.oriole.wisepen.resource.enums.ResourceAction;
 import com.oriole.wisepen.user.api.domain.base.UserDisplayBase;
 import lombok.Data;
@@ -17,7 +16,7 @@ public class ResourceItemResponse extends ResourceItemInfoBase {
     private String resourceId;
     private UserDisplayBase ownerInfo;
 
-    private Map<String, TagInfoBase> currentTags;
+    private List<ResourceTagBindResponse> tagBinds;
     private List<ResourceAction> currentActions;
 
     private Map<String, List<ResourceAction>> overrideGrantedActions;

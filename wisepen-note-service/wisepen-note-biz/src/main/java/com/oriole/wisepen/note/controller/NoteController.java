@@ -12,6 +12,7 @@ import com.oriole.wisepen.note.api.domain.dto.req.NoteSnapshotSaveRequest;
 import com.oriole.wisepen.note.api.domain.dto.req.NoteCreateRequest;
 import com.oriole.wisepen.note.api.domain.dto.req.NoteForkRequest;
 import com.oriole.wisepen.note.api.domain.dto.res.NoteInfoResponse;
+import com.oriole.wisepen.note.api.domain.dto.res.NoteSnapshotResponse;
 import com.oriole.wisepen.note.api.domain.dto.res.NoteVersionInfoResponse;
 import com.oriole.wisepen.note.api.domain.enums.VersionType;
 import com.oriole.wisepen.note.domain.entity.NoteInfoEntity;
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+import static com.oriole.wisepen.note.exception.NoteError.CANNOT_SUPPORT_NOTE_RESOURCE_TYPE;
 import static com.oriole.wisepen.note.exception.NoteError.NOTE_PERMISSION_DENIED;
 
 @Slf4j
@@ -140,7 +142,7 @@ public class NoteController {
                     - 响应：成功时返回空结果。
                     """
     )
-    @Log(title = "保存DrawIO笔记内容", businessType = BusinessType.UPDATE)
+    @Log(title = "保存 Draw.io 笔记内容", businessType = BusinessType.UPDATE)
     @PostMapping("/saveDrawIOSnapshot")
     public R<Void> saveDrawIOSnapshot(@Validated @RequestBody NoteSnapshotSaveRequest request) {
         Long userId = SecurityContextHolder.getUserId();
@@ -154,6 +156,36 @@ public class NoteController {
         request.setType(VersionType.FULL);
         noteVersionService.createVersion(request, List.of(userId), ResourceType.DRAWIO);
         return R.ok();
+    }
+
+    @Operation(
+            summary = "获取最新 Draw.io 笔记快照",
+            description = """
+                    - 用途：供 Draw.io 拉取笔记最新完整快照。
+                    - 请求：resourceId 指定笔记资源。
+                    - 约束：当前用户必须拥有目标资源 VIEW 动作；目标资源类型必须是 DRAWIO；目标资源必须存在。
+                    - 处理：读取最近一个 FULL 快照；如果没有 FULL 快照则返回空 fullSnapshot 和当前版本 0；不生成新版本。
+                    - 失败：笔记不存在 -> NoteError.NOTE_NOT_FOUND；版本读取发生未处理异常 -> CommonError.INTERNAL_ERROR。
+                    - 响应：返回资源 ID、最新版本号和快照。
+                    """
+    )
+    @GetMapping("/getDrawIOLatestVersion")
+    public R<NoteSnapshotResponse> getDrawIOLatestVersion(@RequestParam("resourceId") String resourceId) {
+        Long userId = SecurityContextHolder.getUserId();
+        Map<Long, GroupRoleType> groupRoles = SecurityContextHolder.getGroupRoleMap();
+        ResourceCheckPermissionResDTO permission = remoteResourceService.checkResPermission(
+                ResourceCheckPermissionReqDTO.builder().resourceId(resourceId).userId(userId).groupRoles(groupRoles).build()).getData();
+        if (permission == null || permission.getAllowedActions() == null || !permission.getAllowedActions().contains(ResourceAction.VIEW)) {
+            throw new ServiceException(NOTE_PERMISSION_DENIED);
+        }
+
+        // 此接口限制仅 DrawIO 类型资源可用
+        NoteInfoEntity noteInfoEntity = noteService.getNoteInfo(resourceId);
+        if (noteInfoEntity.getResourceType() != ResourceType.DRAWIO) {
+            throw new ServiceException(CANNOT_SUPPORT_NOTE_RESOURCE_TYPE);
+        }
+
+        return R.ok(noteVersionService.getLatestVersion(resourceId));
     }
 
     @Operation(

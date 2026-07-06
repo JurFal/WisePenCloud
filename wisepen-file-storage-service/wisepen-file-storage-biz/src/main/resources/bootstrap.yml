@@ -46,3 +46,16 @@ wisepen:
     title: 文件存储服务 API
     version: 1.0.0
     description: WisePen 文件上传、下载、删除与回调接口
+
+springwolf:
+  plugin:
+    kafka:
+      scanner:
+        kafka-listener:
+          enabled: false
+  docket:
+    base-package: com.oriole.wisepen.file.storage
+    info:
+      title: 文件存储服务 Kafka Events
+      version: 1.0.0
+      description: 文件上传完成与对象删除相关 Kafka 消息契约

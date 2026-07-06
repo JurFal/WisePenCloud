@@ -9,8 +9,11 @@ import com.oriole.wisepen.common.core.domain.PageR;
 import com.oriole.wisepen.common.core.domain.enums.GroupRoleType;
 import com.oriole.wisepen.common.core.exception.ServiceException;
 import com.oriole.wisepen.resource.constant.SearchConstants;
+import com.oriole.wisepen.resource.domain.dto.res.MarketSearchHitItemResponse;
 import com.oriole.wisepen.resource.domain.dto.res.SearchHitItemResponse;
 import com.oriole.wisepen.resource.domain.entity.ESIndexEntity;
+import com.oriole.wisepen.resource.domain.entity.MarketESIndexEntity;
+import com.oriole.wisepen.resource.enums.MarketSaleStatus;
 import com.oriole.wisepen.resource.enums.ResourceType;
 import com.oriole.wisepen.resource.enums.SearchScope;
 import com.oriole.wisepen.resource.exception.ResourceError;
@@ -49,6 +52,7 @@ public class SearchQueryServiceImpl implements ISearchQueryService {
     private final ElasticsearchOperations elasticsearchOperations;
 
     private static final IndexCoordinates INDEX = IndexCoordinates.of(SearchConstants.RESOURCE_INDEX_NAME);
+    private static final IndexCoordinates MARKET_INDEX = IndexCoordinates.of(SearchConstants.MARKET_RESOURCE_INDEX_NAME);
 
     @Override
     public PageR<SearchHitItemResponse> globalSearch(String currentUserId,
@@ -58,7 +62,7 @@ public class SearchQueryServiceImpl implements ISearchQueryService {
                                                      int page, int size){
         // 构建 Query
         Query mainQuery = buildQuery(keyword, scope, currentUserId, groupRoleMap);
-        HighlightQuery highlightQuery = buildHighlightQuery();
+        HighlightQuery highlightQuery = buildHighlightQuery(ESIndexEntity.class, "content");
         Pageable pageable = PageRequest.of(page - 1, size);
 
         NativeQueryBuilder builder = NativeQuery.builder()
@@ -88,30 +92,107 @@ public class SearchQueryServiceImpl implements ISearchQueryService {
         return result;
     }
 
+    @Override
+    public PageR<MarketSearchHitItemResponse> marketSearch(String keyword,
+                                                           String marketGroupId,
+                                                           SearchScope scope,
+                                                           MarketSaleStatus marketSaleStatus,
+                                                           int page,
+                                                           int size) {
+        // 构建 Query
+        Query mainQuery = buildMarketQuery(keyword, marketGroupId, scope, marketSaleStatus);
+        HighlightQuery highlightQuery = buildHighlightQuery(MarketESIndexEntity.class, "previewContent");
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        NativeQueryBuilder builder = NativeQuery.builder()
+                .withQuery(mainQuery)
+                .withHighlightQuery(highlightQuery)
+                .withPageable(pageable)
+                .withTrackTotalHits(true);
+
+        NativeQuery nativeQuery = builder.build();
+
+        // 执行 Query
+        SearchHits<MarketESIndexEntity> searchHits;
+        try {
+            searchHits = elasticsearchOperations.search(nativeQuery, MarketESIndexEntity.class, MARKET_INDEX);
+        } catch (Exception e) {
+            log.error("market search query failed. keyword={} marketGroupId={} scope={}", keyword, marketGroupId, scope, e);
+            throw new ServiceException(ResourceError.RESOURCE_SEARCH_FAILED);
+        }
+
+        long total = searchHits.getTotalHits();
+        PageR<MarketSearchHitItemResponse> result = new PageR<>(total, page, size);
+
+        for (SearchHit<MarketESIndexEntity> hit : searchHits.getSearchHits()) {
+            result.add(toMarketResponse(hit));
+        }
+
+        log.debug("market search query succeeded. keyword={} marketGroupId={} scope={} total={} page={} size={}",
+                keyword, marketGroupId, scope, total, page, size);
+        return result;
+    }
+
     private Query buildQuery(String keyword,
                              SearchScope scope,
                              String userId,
                              Map<Long, GroupRoleType> groupRoleMap) {
         BoolQuery.Builder bool = new BoolQuery.Builder();
         // [must] 关键词召回
-        bool.must(Query.of(q -> q.multiMatch(m -> m
-                .query(keyword == null ? "" : keyword.trim())
-                .fields(List.of(SearchConstants.BOOSTED_SEARCH_FIELDS))
-                .analyzer(SearchConstants.ANALYZER_IK_SMART)
-        )));
+        bool.must(buildKeywordQuery(keyword, SearchConstants.BOOSTED_SEARCH_FIELDS));
+
         // [filter] SearchScope 类型过滤
         if (scope != null) {
-            List<String> exts = scope.includedResourceTypes().stream().map(ResourceType::getExtension).toList();
-            Query scopeFilter = Query.of(q -> q.terms(t -> t
-                    .field("resourceType")
-                    .terms(tv -> tv.value(exts.stream()
-                            .map(FieldValue::of)
-                            .toList()))));
-            bool.filter(scopeFilter);
+            bool.filter(buildScopeFilter(scope));
         }
         // [filter] ACL 可见性过滤
         bool.filter(buildAclFilter(userId, groupRoleMap));
+
         return Query.of(q -> q.bool(bool.build()));
+    }
+
+    private Query buildMarketQuery(String keyword, String marketGroupId, SearchScope scope, MarketSaleStatus marketSaleStatus) {
+        BoolQuery.Builder bool = new BoolQuery.Builder();
+
+        // [must] 关键词召回
+        bool.must(buildKeywordQuery(keyword, SearchConstants.MARKET_BOOSTED_SEARCH_FIELDS));
+
+        // [filter] SearchScope 类型过滤
+        if (scope != null) {
+            bool.filter(buildScopeFilter(scope));
+        }
+
+        // [filter] Market 组过滤
+        if (StringUtils.hasText(marketGroupId)) {
+            bool.filter(Query.of(q -> q.term(t -> t.field("marketGroupId").value(marketGroupId))));
+        }
+
+        // [filter] Market 售卖状态过滤；管理员搜索可传 null 表示不限状态
+        if (marketSaleStatus != null) {
+            bool.filter(Query.of(q -> q.term(t -> t
+                    .field("marketSaleStatus")
+                    .value(marketSaleStatus.getValue())
+            )));
+        }
+
+        return Query.of(q -> q.bool(bool.build()));
+    }
+
+    private Query buildKeywordQuery(String keyword, String[] fields) {
+        return Query.of(q -> q.multiMatch(m -> m
+                .query(keyword == null ? "" : keyword.trim())
+                .fields(List.of(fields))
+                .analyzer(SearchConstants.ANALYZER_IK_SMART)
+        ));
+    }
+
+    private Query buildScopeFilter(SearchScope scope) {
+        List<String> exts = scope.includedResourceTypes().stream().map(ResourceType::getExtension).toList();
+        return Query.of(q -> q.terms(t -> t
+                .field("resourceType")
+                .terms(tv -> tv.value(exts.stream()
+                        .map(FieldValue::of)
+                        .toList()))));
     }
 
     private Query buildAclFilter(String userId, Map<Long, GroupRoleType> groupRoleMap) {
@@ -167,46 +248,56 @@ public class SearchQueryServiceImpl implements ISearchQueryService {
         return Query.of(q -> q.bool(aclFilter.build()));
     }
 
-    private HighlightQuery buildHighlightQuery() {
+    private HighlightQuery buildHighlightQuery(Class<?> entityClass, String contentField) {
         // 配置为返回若干命中的片段
         HighlightFieldParameters fieldParams = HighlightFieldParameters.builder()
                 .withFragmentSize(SearchConstants.HIGHLIGHT_FRAGMENT_SIZE)
                 .withNumberOfFragments(SearchConstants.HIGHLIGHT_MAX_FRAGMENTS)
                 .build();
+
         // 高亮字段
         HighlightField nameField = new HighlightField("resourceName", fieldParams);
-        HighlightField contentField = new HighlightField("content", fieldParams);
+        HighlightField contentHighlightField = new HighlightField(contentField, fieldParams);
+
         // 高亮包裹
         HighlightParameters params = HighlightParameters.builder()
                 .withPreTags(SearchConstants.HIGHLIGHT_PRE_TAG)
                 .withPostTags(SearchConstants.HIGHLIGHT_POST_TAG)
                 .build();
 
-        Highlight highlight = new Highlight(params, List.of(nameField, contentField));
-        return new HighlightQuery(highlight, ESIndexEntity.class);
+        Highlight highlight = new Highlight(params, List.of(nameField, contentHighlightField));
+        return new HighlightQuery(highlight, entityClass);
     }
 
     private SearchHitItemResponse toResponse(SearchHit<ESIndexEntity> hit) {
         ESIndexEntity content = hit.getContent();
 
-        // 高亮覆写
-        Map<String, List<String>> highlights = hit.getHighlightFields();
-
-        // 高亮覆写 resourceName
-        List<String> resourceNameHLFrags = highlights.get("resourceName");
-        String resourceName = (resourceNameHLFrags != null && !resourceNameHLFrags.isEmpty()) ?
-                resourceNameHLFrags.getFirst(): content.getResourceName();
-
-        // 高亮覆写 content（无高亮返回空）
-        List<String> resourceContentHLFrags = highlights.get("content");
-        String highlightContent = (resourceContentHLFrags != null && !resourceContentHLFrags.isEmpty()) ?
-                resourceContentHLFrags.stream().filter(StringUtils::hasText)
-                .collect(Collectors.joining(SearchConstants.HIGHLIGHT_FRAGMENT_SEPARATOR)) : null;
-
         SearchHitItemResponse res = BeanUtil.copyProperties(content, SearchHitItemResponse.class);
         res.setResourceType(ResourceType.fromExtension(content.getResourceType()));
-        res.setResourceName(resourceName);
-        res.setHighlightContent(highlightContent);
+        // 高亮覆写 resourceName
+        res.setResourceName(getHighlightText(hit, "resourceName", content.getResourceName()));
+        // 高亮覆写 content（无高亮返回空）
+        res.setHighlightContent(getHighlightText(hit, "content", null));
         return res;
+    }
+
+    private MarketSearchHitItemResponse toMarketResponse(SearchHit<MarketESIndexEntity> hit) {
+        MarketESIndexEntity content = hit.getContent();
+
+        MarketSearchHitItemResponse res = BeanUtil.copyProperties(content, MarketSearchHitItemResponse.class);
+        res.setResourceType(ResourceType.fromExtension(content.getResourceType()));
+        // 高亮覆写 resourceName
+        res.setResourceName(getHighlightText(hit, "resourceName", content.getResourceName()));
+        // 高亮覆写 content（无高亮返回空）
+        res.setHighlightContent(getHighlightText(hit, "previewContent", null));
+        return res;
+    }
+
+    private String getHighlightText(SearchHit<?> hit, String fieldName, String fallback) {
+        List<String> fragments = hit.getHighlightFields().get(fieldName);
+        return fragments != null && !fragments.isEmpty() ?
+                fragments.stream()
+                .filter(StringUtils::hasText)
+                .collect(Collectors.joining(SearchConstants.HIGHLIGHT_FRAGMENT_SEPARATOR)) : fallback;
     }
 }

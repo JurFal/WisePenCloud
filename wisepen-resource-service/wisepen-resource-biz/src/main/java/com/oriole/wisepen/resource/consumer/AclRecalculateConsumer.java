@@ -4,6 +4,10 @@ import com.oriole.wisepen.resource.domain.mq.AclRecalculateMessage;
 import com.oriole.wisepen.resource.enums.UpsertField;
 import com.oriole.wisepen.resource.service.IResourceService;
 import com.oriole.wisepen.resource.service.ISearchSyncService;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,6 +26,13 @@ public class AclRecalculateConsumer {
     private final ISearchSyncService searchSyncService;
 
     @KafkaListener(topics = TOPIC_ACL_RECALC, groupId = "wisepen-resource-acl-recalc-group")
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = TOPIC_ACL_RECALC,
+            description = "消费 ACL 重算事件，重新计算资源权限并同步搜索索引中的 ACL 元数据。",
+            payloadType = AclRecalculateMessage.class,
+            message = @AsyncMessage(name = "AclRecalculateMessage", title = "ACL 重算事件")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-resource-acl-recalc-group")
     public void onAclRecalculate(AclRecalculateMessage message) {
         log.info("acl recalculation event received. topic={} resourceId={} trigger={}",
                 TOPIC_ACL_RECALC, message.getResourceId(), message.getTriggerSource());

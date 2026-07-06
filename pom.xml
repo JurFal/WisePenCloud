@@ -43,6 +43,7 @@
         <hutool.version>5.8.26</hutool.version>
         <lombok.version>1.18.30</lombok.version>
         <fastjson2.version>2.0.43</fastjson2.version>
+        <springwolf.version>1.0.0</springwolf.version>
     </properties>
 
     <dependencyManagement>
@@ -99,6 +100,22 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-validation</artifactId>
                 <version>${spring-boot.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.github.springwolf</groupId>
+                <artifactId>springwolf-kafka</artifactId>
+                <version>${springwolf.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.kafka</groupId>
+                        <artifactId>spring-kafka</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.kafka</groupId>
+                        <artifactId>kafka-clients</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>

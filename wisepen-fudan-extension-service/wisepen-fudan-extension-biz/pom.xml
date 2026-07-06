@@ -47,6 +47,10 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.springwolf</groupId>
+            <artifactId>springwolf-kafka</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.microsoft.playwright</groupId>

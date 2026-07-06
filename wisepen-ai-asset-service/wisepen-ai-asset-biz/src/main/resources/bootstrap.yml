@@ -35,3 +35,16 @@ wisepen:
     title: AI 资产服务 API
     version: 1.0.0
     description: WisePen 技能资产创建、编辑、发布与查询接口
+
+springwolf:
+  plugin:
+    kafka:
+      scanner:
+        kafka-listener:
+          enabled: false
+  docket:
+    base-package: com.oriole.wisepen.ai.asset
+    info:
+      title: AI 资产服务 Kafka Events
+      version: 1.0.0
+      description: AI 资产文件上传、资源删除与文件清理相关 Kafka 消息契约

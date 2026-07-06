@@ -4,6 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oriole.wisepen.file.storage.service.IStorageService;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +28,13 @@ public class FileDeleteConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = TOPIC_FILE_DELETE, groupId = "wisepen-storage-file-delete-group")
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = TOPIC_FILE_DELETE,
+            description = "消费对象删除请求，批量删除对象存储中的文件。",
+            payloadType = String.class,
+            message = @AsyncMessage(name = "FileDeleteObjectKeys", title = "待删除对象 Key 列表")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-storage-file-delete-group")
     public void onObjectDeleted(String payload) throws Exception {
         // 可能从非Java微服务订阅，使用objectMapper显式转换
         List<String> objectKeys = objectMapper.readValue(payload, new TypeReference<List<String>>() {});

@@ -10,6 +10,7 @@ import com.oriole.wisepen.resource.domain.base.TagInfoBase;
 import com.oriole.wisepen.resource.domain.dto.res.MarketSaleTierResponse;
 import com.oriole.wisepen.resource.domain.dto.res.MarketSaleInfoResponse;
 import com.oriole.wisepen.resource.domain.dto.res.ResourceItemResponse;
+import com.oriole.wisepen.resource.domain.dto.res.ResourceTagBindResponse;
 import com.oriole.wisepen.resource.domain.entity.ResourceItemEntity;
 import com.oriole.wisepen.resource.domain.entity.TagEntity;
 import com.oriole.wisepen.resource.enums.MarketSaleStatus;
@@ -74,8 +75,11 @@ public class ResourceItemResponseAssembler {
         }
 
         Map<Long, UserDisplayBase> ownerInfoMap = fetchOwnersInfo(entities);
-        Map<String, List<String>> resourcesTagIdsMap = getResourcesTagIdsMap(entities, currentUserId, groupRoles);
-        Map<String, TagInfoBase> tagInfosMap = getResourcesTagInfosMap(resourcesTagIdsMap.values().stream().flatMap(List::stream).collect(Collectors.toSet()));
+        // ResourceID : List<GroupTagBind>
+        Map<String, List<GroupTagBind>> accessibleGroupBindsMap = getAccessibleGroupBindsMap(entities, currentUserId, groupRoles);
+        Set<String> allTagIds = accessibleGroupBindsMap.values().stream().flatMap(List::stream).map(GroupTagBind::getTagIds).flatMap(List::stream).collect(Collectors.toSet());
+        // TagID : TagInfo
+        Map<String, TagInfoBase> tagInfosMap = getResourcesTagInfosMap(allTagIds);
 
         return entities.stream().map(entity->{
             ResourceItemResponse response = BeanUtil.copyProperties(entity, ResourceItemResponse.class);
@@ -85,8 +89,8 @@ public class ResourceItemResponseAssembler {
             response.setCurrentActions(actionsMap.get(entity.getResourceId()));
             // 解析 OwnerInfo
             response.setOwnerInfo(resolveOwnerInfo(entity, ownerInfoMap));
-            // 解析 CurrentTags
-            response.setCurrentTags(resolveCurrentTags(resourcesTagIdsMap.getOrDefault(entity.getResourceId(), Collections.emptyList()), tagInfosMap));
+            // 解析按组分隔的 Tag 绑定
+            response.setTagBinds(resolveTagBinds(accessibleGroupBindsMap.getOrDefault(entity.getResourceId(), Collections.emptyList()), tagInfosMap));
             // 解析 MarketSaleInfos
             List<Map<String, MarketSaleInfoResponse>> marketSaleInfos = resolveMarketSaleInfo(entity.getGroupBinds());
 
@@ -142,25 +146,25 @@ public class ResourceItemResponseAssembler {
         }
     }
 
-    // 获取有权访问的 resourcesTagIdsMap
-    private Map<String, List<String>> getResourcesTagIdsMap(List<ResourceItemEntity> entities,
-                                                       String currentUserId,
-                                                       Map<Long, GroupRoleType> groupRoles) {
-        Map<String, List<String>> resourcesTagIdsMap = new HashMap<>();
+    // 获取用户有权访问的资源标签绑定
+    private Map<String, List<GroupTagBind>> getAccessibleGroupBindsMap(List<ResourceItemEntity> entities,
+                                                                       String currentUserId,
+                                                                       Map<Long, GroupRoleType> groupRoles) {
+        Map<String, List<GroupTagBind>> accessibleGroupBindsMap = new HashMap<>();
         // 收集用户有权访问的组 (包括个人组)
         Set<String> accessibleGroupIds = groupRoles == null ? new HashSet<>() : groupRoles.keySet().stream().map(String::valueOf).collect(Collectors.toSet());
         accessibleGroupIds.add(ResourceConstants.PERSONAL_GROUP_PREFIX + currentUserId);
 
         for (ResourceItemEntity entity : entities) {
-            // 收集资源绑定的、在用户有权访问的组中的标签
-            List<String> tagIds = entity.getGroupBinds() == null ? Collections.emptyList() :
+            // 收集资源绑定的、在用户有权访问的组中的标签绑定
+            List<GroupTagBind> accessibleGroupBinds = entity.getGroupBinds() == null ? Collections.emptyList() :
                     entity.getGroupBinds().stream()
                     .filter(bind -> accessibleGroupIds.contains(bind.getGroupId()))
-                    .map(GroupTagBind::getTagIds)
-                    .filter(Objects::nonNull).flatMap(List::stream).distinct().toList();
-            resourcesTagIdsMap.put(entity.getResourceId(), tagIds);
+                    .filter(bind -> bind.getTagIds() != null && !bind.getTagIds().isEmpty())
+                    .toList();
+            accessibleGroupBindsMap.put(entity.getResourceId(), accessibleGroupBinds);
         }
-        return resourcesTagIdsMap;
+        return accessibleGroupBindsMap;
     }
 
     // 批量获取标签名
@@ -267,12 +271,22 @@ public class ResourceItemResponseAssembler {
         return ownerInfo == null ? new UserDisplayBase("UNKNOW", null, null, null) : ownerInfo;
     }
 
-    private Map<String, TagInfoBase> resolveCurrentTags(List<String> tagIds, Map<String, TagInfoBase> tagNameMap) {
-        Map<String, TagInfoBase> currentTags = new LinkedHashMap<>();
+    private Map<String, TagInfoBase> resolveTags(List<String> tagIds, Map<String, TagInfoBase> tagMap) {
+        Map<String, TagInfoBase> tags = new LinkedHashMap<>();
         for (String tagId : tagIds) {
-            currentTags.put(tagId, tagNameMap.getOrDefault(tagId, TagInfoBase.builder().tagName("UNKNOW").build()));
+            tags.put(tagId, tagMap.getOrDefault(tagId, TagInfoBase.builder().tagName("UNKNOW").build()));
         }
-        return currentTags;
+        return tags;
+    }
+
+    private List<ResourceTagBindResponse> resolveTagBinds(List<GroupTagBind> groupBinds, Map<String, TagInfoBase> tagMap) {
+        return groupBinds.stream().map(groupBind -> {
+            ResourceTagBindResponse tagBindResponse = new ResourceTagBindResponse();
+            tagBindResponse.setGroupId(groupBind.getGroupId());
+            tagBindResponse.setPrimaryTagId(groupBind.getTagIds().getFirst());
+            tagBindResponse.setTags(resolveTags(groupBind.getTagIds(), tagMap));
+            return tagBindResponse;
+        }).toList();
     }
 
     private List<Map<String, MarketSaleInfoResponse>> resolveMarketSaleInfo(List<GroupTagBind> groupBinds) {

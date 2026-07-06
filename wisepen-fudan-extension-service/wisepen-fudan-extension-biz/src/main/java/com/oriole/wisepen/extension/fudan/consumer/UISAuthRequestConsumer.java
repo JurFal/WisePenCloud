@@ -8,6 +8,10 @@ import com.oriole.wisepen.extension.fudan.constant.MqTopicConstants;
 import com.oriole.wisepen.extension.fudan.domain.dto.FudanUISTaskResultDTO;
 import com.oriole.wisepen.extension.fudan.domain.mq.FudanUISAuthRequestMessage;
 import com.oriole.wisepen.extension.fudan.enums.FudanUISTaskState;
+import io.github.springwolf.core.asyncapi.annotations.AsyncListener;
+import io.github.springwolf.core.asyncapi.annotations.AsyncMessage;
+import io.github.springwolf.core.asyncapi.annotations.AsyncOperation;
+import io.github.springwolf.plugins.kafka.asyncapi.annotations.KafkaAsyncOperationBinding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,6 +34,13 @@ public class UISAuthRequestConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = MqTopicConstants.FUDAN_UIS_AUTH_REQ, groupId = "wisepen-extension-fudan-uis-auth-group")
+    @AsyncListener(operation = @AsyncOperation(
+            channelName = MqTopicConstants.FUDAN_UIS_AUTH_REQ,
+            description = "消费复旦 UIS 认证请求，驱动浏览器完成 UIS 登录流程并把任务状态写入 Redis。",
+            payloadType = FudanUISAuthRequestMessage.class,
+            message = @AsyncMessage(name = "FudanUISAuthRequestMessage", title = "复旦 UIS 认证请求")
+    ))
+    @KafkaAsyncOperationBinding(groupId = "wisepen-extension-fudan-uis-auth-group")
     public void handleUisAuthRequest(String payload) throws Exception {
         FudanUISAuthRequestMessage msg = objectMapper.readValue(payload, FudanUISAuthRequestMessage.class);
         log.info("uis auth request received. topic={} userId={} account={}",

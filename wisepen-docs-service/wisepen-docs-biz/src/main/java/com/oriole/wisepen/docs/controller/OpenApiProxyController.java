@@ -37,7 +37,7 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 
-@Tag(name = "文档聚合", description = "代理各微服务的 OpenAPI 文档")
+@Tag(name = "文档聚合", description = "代理各微服务的 OpenAPI 与 AsyncAPI 文档")
 @RestController
 @RequiredArgsConstructor
 public class OpenApiProxyController {
@@ -69,7 +69,7 @@ public class OpenApiProxyController {
                     - 用途：统一文档入口按服务键代理获取目标微服务的 OpenAPI JSON。
                     - 请求：serviceKey 为文档配置中的服务键。
                     - 约束：serviceKey 必须配置到实际服务名；目标服务必须有可用实例。
-                    - 处理：通过负载均衡选择服务实例，转发内部来源标识和灰度开发者标识到目标服务的 /v3/api-docs；不合并或改写目标 OpenAPI 内容。
+                    - 处理：通过负载均衡选择服务实例，转发内部来源标识和灰度开发者标识到目标服务的 OpenAPI 路径；不合并或改写目标 OpenAPI 内容。
                     - 失败：服务键未知、目标服务无实例或代理请求失败时按 HTTP 状态返回。
                     - 响应：返回目标微服务原始 OpenAPI JSON。
                     """
@@ -77,7 +77,7 @@ public class OpenApiProxyController {
     @GetMapping(value = "/docs/api/{serviceKey}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getOpenApi(@PathVariable String serviceKey, HttpServletRequest request) {
         String serviceName = resolveServiceName(serviceKey);
-        URI uri = buildServiceUri(serviceName, docsServiceProperties.getApiDocsPath(), null);
+        URI uri = buildServiceUri(serviceName, resolveApiDocsPath(serviceKey), null);
 
         HttpHeaders headers = buildInternalHeaders(new HttpHeaders());
         ResponseEntity<String> response = restTemplate.exchange(
@@ -92,6 +92,35 @@ public class OpenApiProxyController {
         return ResponseEntity.status(response.getStatusCode())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(rewrittenBody);
+    }
+
+    @Operation(
+            summary = "获取微服务 AsyncAPI 文档",
+            description = """
+                    - 用途：统一文档入口按服务键代理获取目标微服务的 AsyncAPI JSON。
+                    - 请求：serviceKey 为文档配置中的服务键。
+                    - 约束：serviceKey 必须配置到实际服务名；目标服务必须有可用实例。
+                    - 处理：通过负载均衡选择服务实例，转发内部来源标识和灰度开发者标识到目标服务的 Springwolf 文档路径；不改写 AsyncAPI 内容。
+                    - 失败：服务键未知、目标服务无实例或代理请求失败时按 HTTP 状态返回。
+                    - 响应：返回目标微服务原始 AsyncAPI JSON。
+                    """
+    )
+    @GetMapping(value = "/docs/asyncapi/{serviceKey}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getAsyncApi(@PathVariable String serviceKey) {
+        String serviceName = resolveServiceName(serviceKey);
+        URI uri = buildServiceUri(serviceName, resolveAsyncapiDocsPath(serviceKey), null);
+
+        HttpHeaders headers = buildInternalHeaders(new HttpHeaders());
+        ResponseEntity<String> response = restTemplate.exchange(
+                uri,
+                HttpMethod.GET,
+                new HttpEntity<>(headers),
+                String.class
+        );
+
+        return ResponseEntity.status(response.getStatusCode())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(response.getBody());
     }
 
     // 代理 Scalar 发出的实际 API 请求
@@ -125,6 +154,20 @@ public class OpenApiProxyController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown docs service: " + serviceKey);
         }
         return serviceName;
+    }
+
+    // 根据 serviceKey 解析 OpenAPI 文档路径；未单独配置时使用默认路径
+    private String resolveApiDocsPath(String serviceKey) {
+        String apiDocsPath = docsServiceProperties.getApiDocsPaths().get(serviceKey);
+        return StringUtils.hasText(apiDocsPath) ? apiDocsPath : docsServiceProperties.getDefaultApiDocsPath();
+    }
+
+    // 根据 serviceKey 解析 AsyncAPI 文档路径；未单独配置时使用默认 Springwolf 路径
+    private String resolveAsyncapiDocsPath(String serviceKey) {
+        String asyncapiDocsPath = docsServiceProperties.getAsyncapiDocsPaths().get(serviceKey);
+        return StringUtils.hasText(asyncapiDocsPath)
+                ? asyncapiDocsPath
+                : docsServiceProperties.getDefaultAsyncapiDocsPath();
     }
 
     // 通过服务发现构造目标微服务 URI

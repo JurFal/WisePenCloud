@@ -35,3 +35,16 @@ wisepen:
     title: 复旦扩展服务 API
     version: 1.0.0
     description: WisePen 复旦 UIS 认证扩展接口
+
+springwolf:
+  plugin:
+    kafka:
+      scanner:
+        kafka-listener:
+          enabled: false
+  docket:
+    base-package: com.oriole.wisepen.extension.fudan
+    info:
+      title: 复旦扩展服务 Kafka Events
+      version: 1.0.0
+      description: 复旦 UIS 认证请求相关 Kafka 消息契约

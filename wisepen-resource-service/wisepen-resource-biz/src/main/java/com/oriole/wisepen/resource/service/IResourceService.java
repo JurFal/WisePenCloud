@@ -22,6 +22,8 @@ public interface IResourceService {
     // 断言资源归某用户所有
     void assertResourceOwner(String resourceId, String userId);
 
+    ResourceItemEntity getResourceEntity(String resourceId);
+
     // ToUser：重命名、变更Tag、列出资源
     void renameResource(ResourceRenameRequest req);
 

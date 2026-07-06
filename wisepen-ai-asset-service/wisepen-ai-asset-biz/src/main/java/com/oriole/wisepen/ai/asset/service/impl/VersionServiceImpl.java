@@ -185,10 +185,11 @@ public abstract class VersionServiceImpl<VT extends VersionBundleBaseEntity<VT>,
                         .scene(getStorageScene())
                         .bizTag(req.getResourceId())
                         .expectedSize(assetReq.getExpectedSize())
+                        .isNeedCallback(true)
                         .build()).getData();
             } catch (Exception e) {
                 log.warn("AI resource asset upload init failed. resourceId={} version={} dependency=storageService", req.getResourceId(), req.getDraftVersion(), e);
-                throw new ServiceException(AIResourceError.AI_RESOURCE_ASSET_UPLOAD_URL_APPLY_FAILED, e.getMessage());
+                throw new ServiceException(AIResourceError.AI_RESOURCE_ASSET_UPLOAD_URL_APPLY_FAILED);
             }
 
             asset.setObjectKey(uploadInitRespDTO.getObjectKey());

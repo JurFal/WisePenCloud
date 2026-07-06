@@ -15,6 +15,7 @@ import com.oriole.wisepen.resource.repository.CustomResourceUserInteractionRecor
 import com.oriole.wisepen.resource.repository.ResourceItemRepository;
 import com.oriole.wisepen.resource.repository.ResourceUserInteractionRecordRepository;
 import com.oriole.wisepen.resource.service.IResourceInteractionService;
+import com.oriole.wisepen.resource.service.IResourceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ResourceInteractionServiceImpl implements IResourceInteractionService {
 
-    private final ResourceItemRepository resourceItemRepository;
+    private final IResourceService resourceService;
     private final ResourceUserInteractionRecordRepository resourceUserInteractRecordRepository;
     private final CustomResourceItemRepository customResourceItemRepository;
     private final CustomResourceUserInteractionRecordRepository customResourceUserInteractionRecordRepository;
@@ -42,10 +43,7 @@ public class ResourceInteractionServiceImpl implements IResourceInteractionServi
     @Override
     public void changeResourceReadStatus(ResourceReadRequest request, String userId) {
         String resourceId = request.getResourceId();
-        // 软删除资源对用户不可见，拒绝记录互动
-        ResourceItemEntity resource = resourceItemRepository.findById(resourceId)
-                .orElseThrow(() -> new ServiceException(ResourceError.RESOURCE_NOT_FOUND));
-        if (resource.getDeletedAt() != null) throw new ServiceException(ResourceError.RESOURCE_NOT_FOUND);
+        resourceService.getResourceEntity(request.getResourceId());
         // 检查是否在窗口期中的第一次阅读
         Boolean isFirstReadInWindow = redisCacheManager.isFirstReadInWindow(resourceId, userId);
         if (Boolean.TRUE.equals(isFirstReadInWindow)) {
@@ -58,12 +56,7 @@ public class ResourceInteractionServiceImpl implements IResourceInteractionServi
     @Override
     public void changeResourceLikeStatus(ResourceLikeRequest request, String userId) {
         String resourceId = request.getResourceId();
-        // 软删除资源对用户不可见，拒绝记录互动
-        ResourceItemEntity resource = resourceItemRepository.findById(resourceId)
-                .orElseThrow(() -> new ServiceException(ResourceError.RESOURCE_NOT_FOUND));
-        if (resource.getDeletedAt() != null) {
-            throw new ServiceException(ResourceError.RESOURCE_NOT_FOUND);
-        }
+        resourceService.getResourceEntity(request.getResourceId());
         boolean currentLiked = resourceUserInteractRecordRepository
                 .findByUserIdAndResourceId(userId, resourceId)
                 .map(r -> Boolean.TRUE.equals(r.getLiked()))
@@ -77,12 +70,7 @@ public class ResourceInteractionServiceImpl implements IResourceInteractionServi
     @Override
     public void changeResourceScore(ResourceRateRequest request, String userId) {
         String resourceId = request.getResourceId();
-        // 软删除资源对用户不可见，拒绝记录互动
-        ResourceItemEntity resource = resourceItemRepository.findById(resourceId)
-                .orElseThrow(() -> new ServiceException(ResourceError.RESOURCE_NOT_FOUND));
-        if (resource.getDeletedAt() != null) {
-            throw new ServiceException(ResourceError.RESOURCE_NOT_FOUND);
-        }
+        resourceService.getResourceEntity(request.getResourceId());
         Integer newScore = request.getScore();
         ResourceUserInteractionRecordEntity oldRecord =
                 customResourceUserInteractionRecordRepository.findAndSetScore(resourceId, userId, newScore);

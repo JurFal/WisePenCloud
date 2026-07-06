@@ -55,6 +55,19 @@ wisepen:
     version: 1.0.0
     description: WisePen 文档上传、解析、转换与详情接口
 
+springwolf:
+  plugin:
+    kafka:
+      scanner:
+        kafka-listener:
+          enabled: false
+  docket:
+    base-package: com.oriole.wisepen.document
+    info:
+      title: 文档服务 Kafka Events
+      version: 1.0.0
+      description: 文档解析任务、文档就绪与文件清理相关 Kafka 消息契约
+
 logging:
   level:
     root: INFO
