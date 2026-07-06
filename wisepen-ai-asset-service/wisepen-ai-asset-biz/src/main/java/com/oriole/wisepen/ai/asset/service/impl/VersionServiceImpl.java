@@ -2,6 +2,7 @@ package com.oriole.wisepen.ai.asset.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.IdUtil;
+import com.oriole.wisepen.ai.asset.domain.base.AssetContentInfoBase;
 import com.oriole.wisepen.ai.asset.domain.base.AssetInfoBase;
 import com.oriole.wisepen.ai.asset.domain.dto.req.AssetDeleteRequest;
 import com.oriole.wisepen.ai.asset.domain.dto.req.AssetUploadInitRequest;
@@ -136,6 +137,21 @@ public abstract class VersionServiceImpl<VT extends VersionBundleBaseEntity<VT>,
         }
         return versionBundleBaseRepository.findByResourceIdAndVersion(resourceId, version)
                 .orElseThrow(() -> new ServiceException(AIResourceError.AI_RESOURCE_VERSION_NOT_FOUND));
+    }
+
+    public List<AssetContentInfoBase> buildAssetContentInfoList(VT versionBundle, Long durationSeconds) {
+        if (versionBundle.getAssets() == null || versionBundle.getAssets().isEmpty()) {
+            return new ArrayList<>();
+        }
+        return versionBundle.getAssets().stream()
+                .map(asset -> {
+                    AssetContentInfoBase contentInfo = BeanUtil.copyProperties(asset, AssetContentInfoBase.class);
+                    if (!isAssetUnavailable(asset)) {
+                        contentInfo.setDownloadUrl(remoteStorageService.getDownloadUrl(asset.getObjectKey(), durationSeconds).getData());
+                    }
+                    return contentInfo;
+                })
+                .toList();
     }
 
     @Override
